@@ -453,6 +453,63 @@ class AuthenticationTestCase(TestCase):
             )
             self.assertEqual(result.exit_code, 1, "exit code")
 
+    def test_no_password_from_providers(self) -> None:
+        base_dir = os.path.join(self.fixtures_path, inspect.stack()[0][3])
+        cookie_dir = os.path.join(base_dir, "cookie")
+
+        for dir in [base_dir, cookie_dir]:
+            recreate_path(dir)
+
+        with vcr.use_cassette(os.path.join(self.vcr_path, "auth_non_2fa.yml")) as cass:  # noqa: SIM117
+            with self.assertRaises(pyicloud_ipd.exceptions.PyiCloudFailedLoginException) as context:
+                authenticator(
+                    setup_logger(),
+                    "com",
+                    {
+                        "parameter": (constant(None), dummy_password_writter),
+                        "keyring": (constant(None), dummy_password_writter),
+                    },
+                    MFAProvider.CONSOLE,
+                    StatusExchange(),
+                    "jdoe@gmail.com",
+                    lambda: None,
+                    None,
+                    cookie_dir,
+                    "EC5646DE-9423-11E8-BF21-14109FE0B321",
+                )
+
+            self.assertEqual(0, cass.play_count, "requests to Apple")
+
+        self.assertEqual(
+            "No password available from providers: parameter, keyring", str(context.exception)
+        )
+
+    def test_no_password_from_keyring(self) -> None:
+        base_dir = os.path.join(self.fixtures_path, inspect.stack()[0][3])
+        cookie_dir = os.path.join(base_dir, "cookie")
+
+        for dir in [base_dir, cookie_dir]:
+            recreate_path(dir)
+
+        with mock.patch("icloudpd.base.get_password_from_keyring", return_value=None) as keyring:
+            result = run_cassette(
+                os.path.join(self.vcr_path, "auth_non_2fa.yml"),
+                [
+                    "--username",
+                    "jdoe@gmail.com",
+                    "--password-provider",
+                    "keyring",
+                    "--no-progress-bar",
+                    "--cookie-directory",
+                    cookie_dir,
+                    "--auth-only",
+                ],
+            )
+        keyring.assert_called_once_with("jdoe@gmail.com")
+        self.assertIsNone(result.exception)
+        self.assertIn("No password available from providers: keyring", result.output)
+        self.assertEqual(result.exit_code, 1, "exit code")
+
 
 class _TrustedDevice(NamedTuple):
     id: int

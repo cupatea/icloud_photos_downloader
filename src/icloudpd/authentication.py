@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Mapping, Tuple
 from icloudpd.mfa_provider import MFAProvider
 from icloudpd.status import Status, StatusExchange
 from pyicloud_ipd.base import PyiCloudService
-from pyicloud_ipd.exceptions import PyiCloudFailedMFAException
+from pyicloud_ipd.exceptions import PyiCloudFailedLoginException, PyiCloudFailedMFAException
 
 
 def prompt_int_range(message: str, default: str, min_val: int, max_val: int) -> int:
@@ -81,7 +81,10 @@ def authenticator(
             if password:
                 valid_password.append(password)
                 return password
-        return None
+        # PyiCloudService skips sign-in without a password and fails later with KeyError
+        raise PyiCloudFailedLoginException(
+            f"No password available from providers: {', '.join(password_providers)}"
+        )
 
     icloud = PyiCloudService(
         domain,

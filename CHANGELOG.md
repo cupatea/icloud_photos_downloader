@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: clear error instead of `KeyError: 'dsInfo'` when none of the password providers supplies a password
+
 ## 1.32.3 (2026-05-29)
 
 - fix: restore 2FA for Apple's updated auth flow (2026+) [#1322]https://github.com/icloud-photos-downloader/icloud_photos_downloader/issues/1322
